@@ -132,6 +132,8 @@ public class P3 {
 					// Add to tree
 					int result = tree.insert(sequence, handle);
 					
+					// TODO Fix logic
+					
 					if(result < 0) {
 						dbm.remove(handle);
 						System.out.println("Sequence " + sequence + " already in tree.");
@@ -150,11 +152,13 @@ public class P3 {
 					Handle handle = tree.remove(sequence);
 					
 					// Remove sequence from dbm
-					if(handle == null) {
+					if (handle == null) {
 						System.out.println("Sequence " + sequence + " not found in tree.");
 						System.out.println();
 					} else {
 						dbm.remove(handle);
+						System.out.println("Sequence " + sequence + " removed from tree.");
+						System.out.println();
 					}
 				} else if (line.matches(PRINT_PATTERN)) {
 					

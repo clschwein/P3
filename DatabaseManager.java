@@ -57,9 +57,12 @@ public class DatabaseManager {
 	public Handle insert(String sequence, int length) {
 		// Calculate number of bytes needed to store this sequence
 		int bytesNeeded = (int) Math.ceil((double)(length / 4.0));
+		
+		// Check for any free blocks with sufficient size
 		for (Handle freeBlock: free) {
 			int offset = freeBlock.getOffset();
 			if (freeBlock.getLength() >= bytesNeeded) {
+				// Attempt to write to the free block
 				try {
 					file.seek(offset);
 					file.write(buildByteArray(sequence, bytesNeeded));
@@ -68,6 +71,8 @@ public class DatabaseManager {
 					e.printStackTrace();
 					return null;
 				}
+				
+				// Clean up list of free blocks
 				if (freeBlock.getLength() == bytesNeeded) {
 					free.remove(freeBlock);
 				}
@@ -77,6 +82,7 @@ public class DatabaseManager {
 				return new Handle(offset, bytesNeeded);
 			}
 		}
+		
 		// No valid free space so append to end of file
 		int oldLength = -1;
 		try {
@@ -97,12 +103,15 @@ public class DatabaseManager {
 			System.err.println("Problem writing to file. See stack trace for details.");
 			e.printStackTrace();
 		}
+		
 		return new Handle(oldLength, bytesNeeded);
 	}
 
 	/**
 	 * Determines if there is a free block of memory at the end of the file.
-	 * @return the Handle object of the free block at the end of the file, or null if none
+	 * 
+	 * @return - the Handle object of the free block at the end of the file,
+	 *           or null if none
 	 */
 	private Handle freeBlockAtEnd() {
 		for (Handle h: free) {
@@ -120,13 +129,15 @@ public class DatabaseManager {
 
 	/**
 	 * Builds a byte array of the given sequence represented in binary.
+	 * 
 	 * @param sequence - the String sequence to build from
 	 * @param bytesNeeded - the number of bytes needed to represent the sequence
-	 * @return a byte array that should be written to the file
+	 * @return - a byte array that should be written to the file
 	 */
 	private byte[] buildByteArray(String sequence, int bytesNeeded) {
 		byte[] array = new byte[bytesNeeded];
 		int currentByte = 0, count = 0;
+		// Build bytes one character at a time
 		for (int i = 0; i < sequence.length(); i++) {
 			int mod = i % 4;
 			switch (mod) {
@@ -146,17 +157,20 @@ public class DatabaseManager {
 				break;
 			}
 		}
+		
 		// Makes sure we set the last byte, in case 4 does not divide sequence.length()
 		if (count == bytesNeeded - 1) {
 			array[count] = (byte) currentByte;
 		}
+		
 		return array;
 	}
 
 	/**
 	 * Returns the binary representation for the given character.
+	 * 
 	 * @param c - the character to convert to binary
-	 * @return the binary value of the given character
+	 * @return - the binary value of the given character
 	 */
 	private int getCharValue(char c) {
 		c = Character.toUpperCase(c);
@@ -180,22 +194,31 @@ public class DatabaseManager {
 	 * @param handle - the given Handle for the sequence
 	 */
 	public void remove(Handle handle) {
-		for (Handle h: free) {
+		// Check to see where our handle should go
+		// in the list to maintain order
+		for (Handle h : free) {
 			if (handle.getOffset() < h.getOffset()) {
 				free.add(free.indexOf(h), handle);
 				mergeFreeBlocks();
 				return;
 			}
 		}
+		
+		// If we don't find a prior handle, then
+		// just add this one to the end
 		free.add(handle);
+		mergeFreeBlocks();
 	}
 
 	/**
 	 * Merges adjacent free memory blocks together.
 	 */
 	private void mergeFreeBlocks() {
+		// For each free block, check it against the next block
 		for (int i = 0; i < free.size() - 1; i++) {
-			Handle current = free.get(i), next = free.get(i+1);
+			Handle current = free.get(i), next = free.get(i + 1);
+			
+			// If they are adjacent, merge them together
 			if (current.getOffset() + current.getLength() == next.getOffset()) {
 				int newLength = current.getLength() + next.getLength();
 				free.remove(next);
@@ -215,6 +238,7 @@ public class DatabaseManager {
 	 * @return - the sequence in the memory location
 	 */
 	public String getEntry(Handle handle) {
+		// Fetch the bytes from the file
 		byte[] bytes = new byte[handle.getLength()];
 		try {
 			file.seek(handle.getOffset());
@@ -223,32 +247,40 @@ public class DatabaseManager {
 			System.err.println("Cannot read byte sequence for given handle.");
 			e.printStackTrace();
 		}
-		String result = "";
+		
+		// Convert the bytes to a string sequence
+		String output = "";
 		for (byte b: bytes) {
-			result += getStrFromBin(b);
+			output += getStrFromBin(b);
 		}
-		return result;
+		
+		return output;
 	}
 
 	/**
 	 * Returns the binary representation for the given character.
+	 * 
 	 * @param c - the character to convert to binary
-	 * @return the binary value of the given character
+	 * @return - the binary value of the given character
 	 */
 	private String getStrFromBin(byte b) {
+		// Get out each 2-bit value
 		int[] charsInByte = {(b & 0xC0) >> 6, (b & 0x30) >> 4, (b & 0x0C) >> 2, (b & 0x03)};
-		String res = "";
+		
+		// Convert bit-pairs to respective characters
+		String output = "";
 		for (int c: charsInByte) {
 			if (c == 0)
-				res += "A";
+				output += "A";
 			else if (c == 1)
-				res += "C";
+				output += "C";
 			else if (c == 2)
-				res += "G";
+				output += "G";
 			else if (c == 3)
-				res += "T";
+				output += "T";
 		}
-		return res;
+		
+		return output;
 	}
 
 	/**
@@ -258,10 +290,21 @@ public class DatabaseManager {
 	 * @return - all elements of the linked list free
 	 */
 	public String toString() {
-		String ret = "";
-		for (Handle h: free) {
-			ret += h.toString();
+		// Check if there are any free blocks
+		if (free.size() <= 0) {
+			return "Free Blocks:\nNone";
 		}
-		return ret.isEmpty() ? "No free memory blocks.": ret;
+		
+		// Output for each free block
+		String output = "Free Blocks:";
+		int count = 1;
+		for (Handle handle : free) {
+			output += "\n[Block " + count + "]";
+			output += " Starting byte location: " + handle.getOffset();
+			output += ", Size: " + handle.getLength() + " byte(s)";
+			count++;
+		}
+		
+		return output;
 	}
 }

@@ -47,7 +47,7 @@ public class DNATree {
 	 * 
 	 * @param sequence - the new DNA sequence id to insert
 	 * @param handle - the memory handle for the sequence id
-	 * @return the level of the new node, or -1 if unsuccessful
+	 * @return - the level of the new node, or -1 if unsuccessful
 	 */
 	public int insert(String sequence, Handle handle) 
 	{
@@ -84,7 +84,7 @@ public class DNATree {
 	 * @param sequence - the new DNA sequence id to insert
 	 * @param node - the current node in question
 	 * @param handle - the memory handle for the sequence id
-	 * @return the level of the new node, or -1 if unsuccessful
+	 * @return - the level of the new node, or -1 if unsuccessful
 	 */
 	private int insert(String sequence, InternalNode node, Handle handle)
 	{
@@ -114,8 +114,8 @@ public class DNATree {
 			
 			// Determine position
 			String pattern = ((LeafNode)child).getSequence();
-			if (child.getLevel() + 1 < pattern.length()) {
-				position = pattern.charAt(node.getLevel());
+			if (child.getLevel() < pattern.length()) {
+				position = pattern.charAt(child.getLevel());
 			} else {
 				position = 'E';
 			}
